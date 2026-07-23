@@ -33,7 +33,10 @@ function formatShort(d: Date) {
 export default function HomePage() {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const { subjects, loading: subjectsLoading } = useSubjects();
+  const { subjects: allSubjects, loading: subjectsLoading } = useSubjects();
+  // مطابق لـ subjectsForStage في app_state.dart: كل مواد القسم مُحمّلة، لكن
+  // الشاشة تعرض فقط مواد مرحلة الطالب الحالية.
+  const subjects = allSubjects.filter((s) => s.stage === (currentUser?.stage ?? 1));
   const { announcements } = useAnnouncements();
   const { banners } = usePromoBanners();
   const { schedule, loading: scheduleLoading, error: scheduleError } = useScheduleStream();

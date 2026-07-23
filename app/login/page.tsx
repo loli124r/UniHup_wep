@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/primitives";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, signUp, isInstructor, currentInstructor } = useAuth();
+  const { login, signUp } = useAuth();
   const [email, setEmail] = useState("student@uni.edu.iq");
   const [password, setPassword] = useState("");
   const [obscure, setObscure] = useState(true);
@@ -21,15 +21,17 @@ export default function LoginPage() {
   async function submit() {
     setLoading(true);
     setError(null);
-    const err = isSignup ? await signUp(email.trim(), password) : await login(email.trim(), password);
+    const result = isSignup ? await signUp(email.trim(), password) : await login(email.trim(), password);
     setLoading(false);
-    if (err) {
-      setError(err);
+    if (result.error) {
+      setError(result.error);
       return;
     }
-    // نفس منطق التوجيه في login_screen.dart بالضبط
-    if (isInstructor) {
-      router.replace(currentInstructor?.status === "approved" ? "/instructor/home" : "/instructor/pending");
+    // نستخدم القيمة المُرجَعة مباشرة من login/signUp (مو حالة الـ context)
+    // لأن حالة الـ context ممكن ما تكون تحدّثت بعد بنفس اللحظة (React state
+    // غير متزامن) — هذا بالضبط كان يسبب توجيه حساب الدكتور لصفحة الطالب.
+    if (result.instructor) {
+      router.replace(result.instructor.status === "approved" ? "/instructor/home" : "/instructor/pending");
       return;
     }
     router.replace("/home"); // التحقق من onboarding يتم داخل /home نفسها

@@ -32,6 +32,7 @@ import {
 
 // مطابق حرفيًا لـ instructorSignUp
 export function useInstructorSignUp() {
+  const { suppressAutoProfileLoad, loadProfileFor } = useAuth();
   return useCallback(
     async (opts: {
       email: string;
@@ -41,26 +42,34 @@ export function useInstructorSignUp() {
       departmentId: string;
       requestedSubjectIds: string[];
     }) => {
+      // نمنع مستمع onAuthStateChanged من إنشاء بروفايل طالب بالغلط، لأن
+      // createUserWithEmailAndPassword يُطلق الحدث فورًا وقد يسبق كتابة
+      // مستند instructors/{uid} أدناه (race condition كانت تسبب معاملة
+      // حساب الدكتور كطالب).
+      suppressAutoProfileLoad(true);
       try {
         const cred = await createUserWithEmailAndPassword(auth, opts.email, opts.password);
-        await import("firebase/firestore").then(({ setDoc }) =>
-          setDoc(doc(db, "instructors", cred.user.uid), {
-            name: opts.name,
-            email: opts.email,
-            college_id: opts.collegeId,
-            department_id: opts.departmentId,
-            requested_subject_ids: opts.requestedSubjectIds,
-            approved_subject_ids: [],
-            status: "pending",
-            created_at: Date.now(),
-          })
-        );
+        const { setDoc } = await import("firebase/firestore");
+        await setDoc(doc(db, "instructors", cred.user.uid), {
+          name: opts.name,
+          email: opts.email,
+          college_id: opts.collegeId,
+          department_id: opts.departmentId,
+          requested_subject_ids: opts.requestedSubjectIds,
+          approved_subject_ids: [],
+          status: "pending",
+          created_at: Date.now(),
+        });
+        // الآن ومستند instructors مكتوب فعليًا، حمّل البروفايل الصحيح
+        await loadProfileFor(cred.user);
         return null;
       } catch (e: any) {
         return e?.message ?? "فشل إنشاء الحساب";
+      } finally {
+        suppressAutoProfileLoad(false);
       }
     },
-    []
+    [suppressAutoProfileLoad, loadProfileFor]
   );
 }
 
